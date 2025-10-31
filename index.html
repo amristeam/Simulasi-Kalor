@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Calorimeter Heat Simulation</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            margin: 0;
+            padding: 0;
+            color: #222;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 30px auto;
+            background: rgba(255,255,255,0.97);
+            border-radius: 18px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.13);
+            padding: 32px 40px 40px 40px;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 18px;
+            font-size: 2.1em;
+            color: #3a3a7a;
+        }
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 30px;
+            margin-bottom: 30px;
+            justify-content: center;
+        }
+        .control-group {
+            background: #f0f4fa;
+            border-radius: 12px;
+            padding: 18px 22px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+            min-width: 220px;
+        }
+        .control-group label {
+            font-weight: 600;
+            display: block;
+            margin-bottom: 8px;
+        }
+        .control-group input, .control-group select {
+            width: 100%;
+            padding: 8px 10px;
+            border-radius: 6px;
+            border: 1px solid #bfc7d1;
+            font-size: 1em;
+            margin-bottom: 6px;
+        }
+        .simulation-area {
+            display: flex;
+            gap: 40px;
+            justify-content: center;
+            align-items: flex-start;
+            margin-bottom: 30px;
+        }
+        .calorimeter-visual {
+            background: #e3e6f3;
+            border-radius: 18px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.07);
+            padding: 24px 32px;
+            position: relative;
+            width: 320px;
+            height: 420px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        /* Calorimeter SVG styling */
+        .calorimeter-svg {
+            width: 220px;
+            height: 300px;
+            display: block;
+            margin: 0 auto;
+        }
+        .readings {
+            margin-top: 18px;
+            font-size: 1.1em;
+            color: #444;
+        }
+        .spec-heat-info {
+            margin-top: 10px;
+            font-size: 1.05em;
+            color: #2d3a4a;
+            background: #eaf6ff;
+            border-radius: 8px;
+            padding: 10px 14px;
+            width: 95%;
+            box-sizing: border-box;
+            text-align: left;
+        }
+        .spec-heat-info .formula {
+            font-family: 'Consolas', 'Menlo', 'Monaco', monospace;
+            color: #1a4d7a;
+            font-size: 1.08em;
+            display: block;
+            margin-bottom: 4px;
+        }
+        .spec-heat-info .values {
+            margin-top: 4px;
+            font-size: 1em;
+            color: #1a4d7a;
+        }
+        .graph-area {
+            flex: 1;
+            min-width: 350px;
+            background: #f7f8fa;
+            border-radius: 14px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+            padding: 18px 24px;
+        }
+        canvas {
+            width: 100% !important;
+            max-width: 600px;
+            height: 320px !important;
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+        }
+        .info {
+            margin-top: 10px;
+            font-size: 0.98em;
+            color: #555;
+            text-align: center;
+        }
+        .timer {
+            margin-top: 18px;
+            font-size: 1.2em;
+            color: #3a3a7a;
+            text-align: center;
+        }
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        @media (max-width: 900px) {
+            .simulation-area {
+                flex-direction: column;
+                align-items: center;
+            }
+            .graph-area {
+                width: 100%;
+                min-width: unset;
+                margin-top: 24px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Calorimeter Heat Simulation</h1>
+        <div class="info">
+            <b>Instructions:</b><br>
+            <ol style="text-align:left; max-width:700px; margin: 0 auto 10px auto;">
+                <li>Select the <b>material</b> (Gold, Copper, or Iron) and set its <b>mass</b> and <b>initial temperature</b>.</li>
+                <li>Set the <b>mass of water</b> and its <b>initial temperature</b>.</li>
+                <li>Click <b>Start Simulation</b> to begin. The hot material will be dropped into the water inside the calorimeter.</li>
+                <li>Observe the temperature changes of both the material and the water over time, as shown in the graph and the thermometer.</li>
+                <li>The simulation will run until both the material and water reach <b>thermal equilibrium</b> (the same temperature).</li>
+                <li>All heat lost by the material is absorbed by the water. The calorimeter is considered perfectly insulated (no heat lost to the environment).</li>
+                <li>You can stop the simulation at any time or change the parameters to reset.</li>
+            </ol>
+            <b>About:</b><br>
+            This simulation models heat transfer in a calorimeter. The graph below shows the temperature of the material (decreasing) and the water (increasing) as they exchange heat.<br>
+            <span style="color:green">The system is highly insulated, so heat loss to the environment is minimized (assumed to be zero).</span>
+        </div>
+        <div class="controls">
+            <div class="control-group">
+                <label for="material">Material (Substance):</label>
+                <select id="material">
+                    <option value="gold">Gold</option>
+                    <option value="copper">Copper</option>
+                    <option value="iron">Iron</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <label for="mass">Mass of Material (g):</label>
+                <input type="number" id="mass" min="1" max="500" value="100">
+            </div>
+            <div class="control-group">
+                <label for="initTemp">Initial Material Temp (°C):</label>
+                <input type="number" id="initTemp" min="20" max="200" value="100">
+            </div>
+            <div class="control-group">
+                <label for="waterMass">Mass of Water (g):</label>
+                <input type="number" id="waterMass" min="50" max="500" value="200">
+            </div>
+            <div class="control-group">
+                <label for="waterTemp">Initial Water Temp (°C):</label>
+                <input type="number" id="waterTemp" min="0" max="100" value="25">
+            </div>
+            <div class="control-group" style="display:flex;align-items:end;">
+                <div class="button-group" style="width:100%;">
+                    <button id="startBtn" style="margin-top: 22px; width: 100%; font-size: 1.1em;">Start Simulation</button>
+                    <button id="stopBtn" style="margin-top: 22px; width: 100%; font-size: 1.1em; display:none;">Stop</button>
+                </div>
+            </div>
+        </div>
+        <div class="simulation-area">
+            <div class="calorimeter-visual">
+                <!-- SVG ANIMATION: Calorimeter, Water, Substance, Thermometer -->
+                <svg class="calorimeter-svg" viewBox="0 0 220 300">
+                    <!-- Calorimeter body -->
+                    <rect x="30" y="40" width="160" height="220" rx="30" fill="#dbeafe" stroke="#b0b0b0" stroke-width="4"/>
+                    <!-- Water (animated height) -->
+                    <rect id="waterRect" x="40" y="80" width="140" height="160" rx="20" fill="#4eafff" opacity="0.55"/>
+                    <!-- Substance (animated drop) -->
+                    <circle id="substanceBall" cx="110" cy="70" r="22" fill="#ffd700" stroke="#b87333" stroke-width="2" opacity="0.95"/>
+                    <!-- Thermometer (right side, outside calorimeter) -->
+                    <g id="thermoGroup" transform="translate(170,30)">
+                        <rect x="10" y="30" width="18" height="120" rx="9" fill="#e0e0e0" stroke="#b0b0b0" stroke-width="2"/>
+                        <rect id="thermoMercury" x="10" y="30" width="18" height="0" rx="9" fill="url(#mercuryGrad)"/>
+                        <circle cx="19" cy="155" r="22" fill="#ff4e50" stroke="#b0b0b0" stroke-width="2"/>
+                        <text id="thermoLabel" x="45" y="90" font-size="1.1em" font-family="Segoe UI" fill="#3a3a7a" font-weight="bold">-- °C</text>
+                    </g>
+                    <defs>
+                        <linearGradient id="mercuryGrad" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stop-color="#ff4e50"/>
+                            <stop offset="100%" stop-color="#f9d423"/>
+                        </linearGradient>
+                    </defs>
+                </svg>
+                <div class="timer">
+                    Time: <span id="timer">00:00</span>
+                </div>
+                <div class="readings">
+                    <div>Current Temp (Material): <span id="currentTemp">--</span> °C</div>
+                    <div>Current Temp (Water): <span id="currentTempWater">--</span> °C</div>
+                    <div>Mass of Water: <span id="currentWaterMass">--</span> g</div>
+                    <div>Heat Lost by Material: <span id="heatLost">--</span> J</div>
+                </div>
+                <!-- Specific Heat Capacity Info -->
+                <div class="spec-heat-info" id="specHeatInfo">
+                    <span class="formula"><b>Formula:</b> <i>Q = m &times; c &times; ΔT</i></span>
+                    <span class="formula"><b>Specific Heat Capacity (c):</b> <i>c = Q / (m &times; ΔT)</i></span>
+                    <span class="values">
+                        <b>Substance:</b> <span id="substanceName">-</span><br>
+                        <b>Mass (m):</b> <span id="substanceMass">-</span> g<br>
+                        <b>Specific Heat (c):</b> <span id="substanceC">-</span> J/g&deg;C
+                    </span>
+                </div>
+            </div>
+            <div class="graph-area">
+                <canvas id="tempGraph" width="600" height="320"></canvas>
+            </div>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        // Material properties (specific heat in J/g°C)
+        const materials = {
+            gold:   { name: "Gold",   c: 0.13, color: "#ffd700" },
+            copper: { name: "Copper", c: 0.39, color: "#b87333" },
+            iron:   { name: "Iron",   c: 0.45, color: "#b7410e" }
+        };
+        const c_water = 4.18; // J/g°C
+
+        // DOM elements
+        const materialSel = document.getElementById('material');
+        const massInput = document.getElementById('mass');
+        const initTempInput = document.getElementById('initTemp');
+        const waterMassInput = document.getElementById('waterMass');
+        const waterTempInput = document.getElementById('waterTemp');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        // SVG elements
+        const waterRect = document.getElementById('waterRect');
+        const substanceBall = document.getElementById('substanceBall');
+        const thermoMercury = document.getElementById('thermoMercury');
+        const thermoLabel = document.getElementById('thermoLabel');
+        // Readings
+        const currentTempSpan = document.getElementById('currentTemp');
+        const currentTempWaterSpan = document.getElementById('currentTempWater');
+        const currentWaterMassSpan = document.getElementById('currentWaterMass');
+        const heatLostSpan = document.getElementById('heatLost');
+        const timerSpan = document.getElementById('timer');
+        // Specific heat info
+        const specHeatInfo = document.getElementById('specHeatInfo');
+        const substanceNameSpan = document.getElementById('substanceName');
+        const substanceMassSpan = document.getElementById('substanceMass');
+        const substanceCSpan = document.getElementById('substanceC');
+
+        // Simulation state
+        let simTime = 0; // seconds
+        let simData = [];
+        let simRunning = false;
+        let T_material, T_water, m_material, m_water, c_material, T_eq, Q_total;
+        let lastTemp = null;
+
+        // Chart.js setup: 2 datasets, one for material, one for water
+        const ctx = document.getElementById('tempGraph').getContext('2d');
+        const tempChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [
+                    {
+                        label: 'Material Temp (°C)',
+                        data: [],
+                        borderColor: '#e67e22',
+                        backgroundColor: 'rgba(230,126,34,0.08)',
+                        pointRadius: 2,
+                        fill: false,
+                        tension: 0.18
+                    },
+                    {
+                        label: 'Water Temp (°C)',
+                        data: [],
+                        borderColor: '#2980d9',
+                        backgroundColor: 'rgba(41,128,217,0.08)',
+                        pointRadius: 2,
+                        fill: false,
+                        tension: 0.18
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                animation: false,
+                scales: {
+                    x: {
+                        title: { display: true, text: 'Time (s)' },
+                        min: 0
+                    },
+                    y: {
+                        title: { display: true, text: 'Temperature (°C)' },
+                        min: 0,
+                        max: 110
+                    }
+                }
+            }
+        });
+
+        // Helper: format time mm:ss
+        function formatTimeSec(sec) {
+            let m = Math.floor(sec / 60);
+            let s = Math.floor(sec % 60);
+            return `${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
+        }
+
+        // SVG Thermometer update
+        function updateSvgThermometer(temp) {
+            // Range: 0°C to 100°C
+            let percent = Math.max(0, Math.min(1, (temp-0)/100));
+            // Mercury height: max 120px (y=30 to y=150)
+            let mercuryHeight = percent * 120;
+            thermoMercury.setAttribute('height', mercuryHeight);
+            thermoMercury.setAttribute('y', 150 - mercuryHeight + 0);
+            // Color
+            thermoMercury.setAttribute('fill', temp >= 60 ? "url(#mercuryGrad)" : "#4eafff");
+            // Label
+            thermoLabel.textContent = temp.toFixed(1) + " °C";
+        }
+
+        // SVG Water update
+        function updateSvgWater(waterMass, waterTemp) {
+            // Water height: 0g = 0px, 500g = 160px (max)
+            let minY = 80+160; // y=240 (bottom)
+            let maxY = 80;     // y=80 (top)
+            let maxMass = 500;
+            let h = Math.max(0, Math.min(1, waterMass / maxMass)) * 160;
+            let y = minY - h;
+            waterRect.setAttribute('y', y);
+            waterRect.setAttribute('height', h);
+            // Water color: blue, but a bit lighter if temp increases
+            let blue = Math.round(175 + (waterTemp-25)*2);
+            let color = `rgb(78,${blue},255)`;
+            waterRect.setAttribute('fill', color);
+        }
+
+        // SVG Substance update
+        function updateSvgSubstance(mat, y, color) {
+            substanceBall.setAttribute('cy', y);
+            substanceBall.setAttribute('fill', color);
+            // Optionally, change stroke for different materials
+            if(mat === "gold") substanceBall.setAttribute('stroke', "#b87333");
+            else if(mat === "copper") substanceBall.setAttribute('stroke', "#b87333");
+            else if(mat === "iron") substanceBall.setAttribute('stroke', "#b7410e");
+        }
+
+        // Heat calculation
+        function calcEquilibriumTemp(m1, c1, T1, m2, c2, T2) {
+            // m1,c1,T1: material; m2,c2,T2: water
+            // (m1*c1*T1 + m2*c2*T2) / (m1*c1 + m2*c2)
+            // Perfectly insulated system, no heat lost to environment
+            return (m1*c1*T1 + m2*c2*T2) / (m1*c1 + m2*c2);
+        }
+        function calcHeatLost(m, c, T_start, T_end) {
+            // All heat lost by material is absorbed by water (perfect insulation)
+            return m * c * (T_start - T_end);
+        }
+
+        // --- Calculate time constant tau for much faster temperature drop ---
+        // We want the temperature to drop about 60°C per minute at the start (super fast).
+        // For exponential decay: dT/dt = -(T-T_eq)/tau
+        // At t=0, dT/dt = -(T0-T_eq)/tau
+        // So tau = -(T0-T_eq)/(dT/dt)
+        // If we want dT/dt = -60°C/60s at t=0, then tau = 1*(T0-T_eq)
+        // We'll use this tau for the simulation.
+
+        let tau = 0; // time constant (seconds)
+        let T0 = 0; // initial temp of material
+        let T_sim = 0; // current simulated temp
+
+        // Animation state
+        let animFrame = null;
+        let dropAnimDone = false;
+        let dropStart = null;
+        let dropDuration = 300; // ms (was 900, now 3x faster)
+        let dropYStart = 70;
+        let dropYEnd = 200;
+
+        // For graph: store both material and water temp
+        let T0_material = 0;
+        let T0_water = 0;
+
+        // --- Animation-driven simulation and graph update ---
+        let lastFrameTime = null;
+        let simAfterDrop = false;
+
+        // --- For 5s graph update ---
+        let lastGraphTime = 0;
+
+        // Update specific heat info box
+        function updateSpecHeatInfo() {
+            let mat = materialSel.value;
+            let matObj = materials[mat];
+            let m = parseFloat(massInput.value);
+            substanceNameSpan.textContent = matObj ? matObj.name : "-";
+            substanceMassSpan.textContent = isNaN(m) ? "-" : m.toFixed(2);
+            substanceCSpan.textContent = matObj ? matObj.c + " J/g°C" : "-";
+        }
+
+        // Initial update
+        updateSpecHeatInfo();
+
+        // Update on input change
+        [materialSel, massInput].forEach(el => {
+            el.addEventListener('input', updateSpecHeatInfo);
+        });
+
+        function startSimulation() {
+            // Get values
+            let mat = materialSel.value;
+            c_material = materials[mat].c;
+            m_material = parseFloat(massInput.value);
+            T_material = parseFloat(initTempInput.value);
+            m_water = parseFloat(waterMassInput.value);
+            T_water = parseFloat(waterTempInput.value);
+
+            // Calculate equilibrium temp
+            // Perfectly insulated: all heat from material is absorbed by water, no loss to environment
+            T_eq = calcEquilibriumTemp(m_material, c_material, T_material, m_water, c_water, T_water);
+
+            // Total heat lost by material (all goes to water)
+            Q_total = calcHeatLost(m_material, c_material, T_material, T_eq);
+
+            // Calculate time constant tau for much faster cooling
+            // tau = 1 * (T0 - T_eq) [in seconds], so that at t=0, dT/dt = -60°C/min
+            T0 = T_material;
+            tau = 1 * Math.abs(T0 - T_eq);
+            if (tau < 1) tau = 1; // minimum 1 second, so it's not too fast if deltaT is small
+
+            // Reset simulation state
+            simTime = 0;
+            simData = [];
+            simRunning = true;
+            lastTemp = T_material;
+            T_sim = T_material;
+            dropAnimDone = false;
+            dropStart = null;
+            simAfterDrop = false;
+            lastFrameTime = null;
+            lastGraphTime = 0;
+
+            // For graph
+            T0_material = T_material;
+            T0_water = T_water;
+
+            // Update SVG: reset substance position, water, thermometer
+            updateSvgSubstance(mat, dropYStart, materials[mat].color);
+            updateSvgWater(m_water, T_water);
+            updateSvgThermometer(T_material);
+
+            currentTempSpan.textContent = T_material.toFixed(2);
+            if (currentTempWaterSpan) currentTempWaterSpan.textContent = T_water.toFixed(2);
+            currentWaterMassSpan.textContent = m_water.toFixed(2);
+            heatLostSpan.textContent = "0.00";
+            timerSpan.textContent = "00:00";
+            tempChart.data.labels = [];
+            tempChart.data.datasets[0].data = [];
+            tempChart.data.datasets[1].data = [];
+            tempChart.update();
+
+            // Update specific heat info
+            updateSpecHeatInfo();
+
+            // Button state
+            startBtn.style.display = "none";
+            stopBtn.style.display = "";
+
+            // Start drop animation, then simulation
+            if (animFrame) cancelAnimationFrame(animFrame);
+            dropAnimDone = false;
+            dropStart = null;
+            simAfterDrop = false;
+            lastFrameTime = null;
+            animFrame = requestAnimationFrame(animateDropAndSim);
+        }
+
+        function animateDropAndSim(ts) {
+            if (!dropStart) dropStart = ts || performance.now();
+            let now = ts || performance.now();
+            let elapsed = now - dropStart;
+            let mat = materialSel.value;
+            let color = materials[mat].color;
+            let y;
+            if (elapsed < dropDuration) {
+                // Animate drop
+                y = dropYStart + (dropYEnd - dropYStart) * (elapsed / dropDuration);
+                updateSvgSubstance(mat, y, color);
+
+                // During drop, keep graph and readings at initial state
+                if (simTime === 0) {
+                    tempChart.data.labels = [];
+                    tempChart.data.datasets[0].data = [];
+                    tempChart.data.datasets[1].data = [];
+                    tempChart.update();
+                }
+
+                animFrame = requestAnimationFrame(animateDropAndSim);
+            } else {
+                // End of drop, start simulation
+                if (!simAfterDrop) {
+                    updateSvgSubstance(mat, dropYEnd, color);
+                    dropAnimDone = true;
+                    simAfterDrop = true;
+                    lastFrameTime = now;
+                }
+                // Now, run simulation and graph update in sync with animation frame
+                animFrame = requestAnimationFrame(simulationStepFrame);
+            }
+        }
+
+        // --- MODIFIED: Make water temperature rise faster than material cools down ---
+        function simulationStepFrame(ts) {
+            if (!simRunning) return;
+            if (!lastFrameTime) lastFrameTime = ts || performance.now();
+            let now = ts || performance.now();
+            let dt = (now - lastFrameTime) / 1000; // seconds
+            if (dt > 0.1) dt = 0.1; // clamp to avoid jumps if tab was inactive
+            lastFrameTime = now;
+
+            simTime += dt;
+
+            // Exponential approach to equilibrium: T_material = T_eq + (T0 - T_eq) * exp(-t/tau)
+            let Tmat = T_eq + (T0_material - T_eq) * Math.exp(-simTime / tau);
+
+            // Water temp rises faster (simulate faster heat absorb by water)
+            // Use a smaller tau for water, e.g. tau_water = tau * 0.5 (twice as fast)
+            let tau_water = tau * 0.5;
+            if (tau_water < 0.5) tau_water = 0.5; // prevent too small
+            let Twat = T0_water + (T_eq - T0_water) * (1 - Math.exp(-simTime / tau_water));
+
+            // Heat lost so far (all goes to water, no loss to surroundings)
+            let Q = calcHeatLost(m_material, c_material, T0_material, Tmat);
+
+            // Update SVG thermometer and readings (using material temp)
+            updateSvgThermometer(Tmat);
+            updateSvgWater(m_water, Twat);
+
+            currentTempSpan.textContent = Tmat.toFixed(2);
+            if (currentTempWaterSpan) currentTempWaterSpan.textContent = Twat.toFixed(2);
+            currentWaterMassSpan.textContent = m_water.toFixed(2);
+            heatLostSpan.textContent = Q.toFixed(2);
+            timerSpan.textContent = formatTimeSec(simTime);
+
+            // Update graph: both material and water temp every 5 seconds
+            if (
+                simTime - lastGraphTime >= 5 ||
+                (Math.abs(Tmat - T_eq) < 0.05 && Math.abs(Twat - T_eq) < 0.05)
+            ) {
+                let plotTime = simTime;
+                tempChart.data.labels.push(plotTime.toFixed(0));
+                tempChart.data.datasets[0].data.push(Tmat);
+                tempChart.data.datasets[1].data.push(Twat);
+                tempChart.update();
+                lastGraphTime = simTime - (simTime % 5); // snap to last 5s
+            }
+
+            // Stop if both reach equilibrium (difference < 0.05°C)
+            if (Math.abs(Tmat - T_eq) < 0.05 && Math.abs(Twat - T_eq) < 0.05) {
+                simRunning = false;
+                startBtn.style.display = "";
+                stopBtn.style.display = "none";
+                // Ensure last point is plotted at equilibrium
+                let plotTime = simTime;
+                if (
+                    tempChart.data.labels.length === 0 ||
+                    tempChart.data.labels[tempChart.data.labels.length-1] != plotTime.toFixed(0)
+                ) {
+                    tempChart.data.labels.push(plotTime.toFixed(0));
+                    tempChart.data.datasets[0].data.push(Tmat);
+                    tempChart.data.datasets[1].data.push(Twat);
+                    tempChart.update();
+                }
+                return;
+            }
+            animFrame = requestAnimationFrame(simulationStepFrame);
+        }
+
+        function stopSimulation() {
+            simRunning = false;
+            if (animFrame) cancelAnimationFrame(animFrame);
+            startBtn.style.display = "";
+            stopBtn.style.display = "none";
+        }
+
+        // Start button
+        startBtn.onclick = () => {
+            startSimulation();
+        };
+
+        // Stop button
+        stopBtn.onclick = () => {
+            stopSimulation();
+        };
+
+        // Reset everything if user changes parameters
+        [materialSel, massInput, initTempInput, waterMassInput, waterTempInput].forEach(el => {
+            el.addEventListener('input', () => {
+                simRunning = false;
+                if (animFrame) cancelAnimationFrame(animFrame);
+                // Reset SVG
+                let mat = materialSel.value;
+                updateSvgSubstance(mat, dropYStart, materials[mat].color);
+                updateSvgWater(parseFloat(waterMassInput.value), parseFloat(waterTempInput.value));
+                updateSvgThermometer(parseFloat(initTempInput.value));
+                currentTempSpan.textContent = "--";
+                if (currentTempWaterSpan) currentTempWaterSpan.textContent = "--";
+                currentWaterMassSpan.textContent = "--";
+                heatLostSpan.textContent = "--";
+                timerSpan.textContent = "00:00";
+                tempChart.data.labels = [];
+                tempChart.data.datasets[0].data = [];
+                tempChart.data.datasets[1].data = [];
+                tempChart.update();
+                startBtn.style.display = "";
+                stopBtn.style.display = "none";
+                updateSpecHeatInfo();
+            });
+        });
+
+        // Add missing water temp span if not present (for backward compatibility)
+        if (!document.getElementById('currentTempWater')) {
+            let readingsDiv = document.querySelector('.readings');
+            let waterTempDiv = document.createElement('div');
+            waterTempDiv.innerHTML = 'Current Temp (Water): <span id="currentTempWater">--</span> °C';
+            readingsDiv.insertBefore(waterTempDiv, readingsDiv.children[1]);
+        }
+
+        // Initialize SVG thermometer, water, substance, and readings
+        let mat0 = materialSel.value;
+        updateSvgSubstance(mat0, dropYStart, materials[mat0].color);
+        updateSvgWater(parseFloat(waterMassInput.value), parseFloat(waterTempInput.value));
+        updateSvgThermometer(parseFloat(initTempInput.value));
+        currentTempSpan.textContent = "--";
+        if (currentTempWaterSpan) currentTempWaterSpan.textContent = "--";
+        currentWaterMassSpan.textContent = "--";
+        heatLostSpan.textContent = "--";
+        timerSpan.textContent = "00:00";
+        startBtn.style.display = "";
+        stopBtn.style.display = "none";
+        updateSpecHeatInfo();
+    </script>
+</body>
+</html>
